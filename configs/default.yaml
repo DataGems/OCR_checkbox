@@ -1,0 +1,94 @@
+# Default configuration for OCR Checkbox Detection Pipeline
+
+# Global settings
+project_name: "checkbox_detection"
+experiment_name: "baseline"
+seed: 42
+verbose: true
+
+# Detection model configuration (YOLOv8)
+detection:
+  model_name: "yolov8n.pt"  # Base model (n=nano, s=small, m=medium, l=large, x=xlarge)
+  img_size: 640             # Input image size
+  batch_size: 16            # Training batch size
+  epochs: 100               # Maximum training epochs
+  learning_rate: 0.01       # Initial learning rate
+  patience: 10              # Early stopping patience
+  save_period: 10           # Save checkpoint every N epochs
+  device: "0"               # GPU device (0, 1, 2... or "cpu")
+  workers: 4                # Number of data loading workers
+  
+  # Data augmentation parameters
+  hsv_h: 0.015              # Hue augmentation (0-1)
+  hsv_s: 0.7                # Saturation augmentation (0-1)
+  hsv_v: 0.4                # Value augmentation (0-1)
+  degrees: 0.0              # Rotation degrees (+/-)
+  translate: 0.1            # Translation (+/-)
+  scale: 0.5                # Scale (+/-)
+  shear: 0.0                # Shear (+/-)
+  perspective: 0.0          # Perspective (+/-)
+  flipud: 0.0               # Vertical flip probability
+  fliplr: 0.5               # Horizontal flip probability
+  mosaic: 1.0               # Mosaic probability
+  mixup: 0.0                # Mixup probability
+
+# Classification model configuration (EfficientNet)
+classification:
+  model_name: "efficientnet_b0"  # Model architecture
+  num_classes: 3                 # checked, unchecked, unclear
+  img_size: 128                  # Input size for checkbox crops
+  batch_size: 32                 # Training batch size
+  epochs: 50                     # Maximum training epochs  
+  learning_rate: 0.001           # Initial learning rate
+  weight_decay: 0.0001           # L2 regularization
+  patience: 7                    # Early stopping patience
+  device: "cuda"                 # Device (cuda/cpu)
+  workers: 4                     # Number of data loading workers
+  
+  # Data augmentation parameters
+  rotation_range: 15             # Random rotation degrees
+  brightness_range: 0.2          # Brightness adjustment range
+  contrast_range: 0.2            # Contrast adjustment range
+  gaussian_noise_std: 0.01       # Gaussian noise standard deviation
+
+# Data processing configuration
+data:
+  # Directory paths
+  raw_data_dir: "data/raw"
+  processed_data_dir: "data/processed"
+  
+  # Dataset splits
+  train_split: 0.7               # Training split ratio
+  val_split: 0.15                # Validation split ratio
+  test_split: 0.15               # Test split ratio
+  
+  # PDF processing settings
+  pdf_dpi: 300                   # PDF to image conversion DPI
+  apply_deskew: true             # Apply deskewing preprocessing
+  apply_denoise: true            # Apply Gaussian denoising
+  denoise_sigma: 0.5             # Denoising kernel sigma
+  
+  # Dataset creation
+  synthetic_ratio: 0.3           # Synthetic data ratio (max 0.5 per requirements)
+  min_checkbox_size: 10          # Minimum checkbox size (pixels)
+  max_checkbox_size: 100         # Maximum checkbox size (pixels)
+
+# Pipeline configuration
+pipeline:
+  # Detection thresholds
+  detection_confidence: 0.25     # Minimum detection confidence
+  nms_iou_threshold: 0.45        # Non-max suppression IoU threshold
+  max_detections: 1000           # Maximum detections per image
+  
+  # Classification thresholds
+  classification_confidence: 0.8  # Minimum classification confidence
+  
+  # Performance settings
+  batch_processing: true         # Enable batch processing
+  max_batch_size: 8             # Maximum batch size for inference
+  enable_quantization: false    # Enable INT8 quantization for speed
+  
+  # Output settings  
+  output_format: "json"         # Output format (json/csv)
+  include_crops: false          # Save individual checkbox crops
+  confidence_threshold: 0.5     # Minimum confidence for final output

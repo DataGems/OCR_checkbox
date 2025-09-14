@@ -49,13 +49,16 @@ python scripts/infer.py <pdf>    # Direct inference
 ./run.sh download-sample    # Download sample data
 ./run.sh download-all       # Download all datasets
 ./run.sh clean              # Clean generated files
+python scripts/run_data_preparation.py  # Complete data prep pipeline
+python scripts/prepare_datasets.py --help  # Manual dataset processing
+python scripts/generate_synthetic_checkboxes.py --help  # Generate synthetic data
 ```
 
 ## Architecture Overview
 
 The pipeline follows a two-stage approach:
 
-1. **Detection Stage** (`src/detection/`): YOLOv8 locates checkboxes in document images
+1. **Detection Stage** (`src/detection/`): YOLOv12 locates checkboxes in document images using attention mechanisms for improved small object detection
 2. **Classification Stage** (`src/classification/`): EfficientNet-B0 classifies checkbox states (checked/unchecked/unclear)
 
 Key modules:
@@ -65,12 +68,18 @@ Key modules:
 
 Data flow: PDF → Image Conversion → Preprocessing → Detection → Classification → JSON Output
 
+### Training Commands
+```bash
+python scripts/train_yolo12_detection.py --data data/processed/data.yaml --model yolo12n.pt
+python scripts/train_yolo12_detection.py --data data/processed/data.yaml --model yolo12s.pt --export
+```
+
 ## Configuration
 
 All configuration is YAML-based in `configs/`:
-- `detection.yaml`: YOLOv8 detection settings
-- `classification.yaml`: EfficientNet classification settings
-- `pipeline.yaml`: End-to-end pipeline configuration
+- `default.yaml`: Main configuration with YOLOv12 detection settings
+- YOLOv12 variants: nano (n), small (s), medium (m), large (l), extra-large (x)
+- EfficientNet-B0 classification settings
 
 ## Performance Requirements
 
@@ -88,3 +97,68 @@ When modifying code, ensure these targets are maintained:
 - Modular design - each component can be used independently
 - Batch processing supported for efficiency
 - Comprehensive error handling expected in all modules
+
+## Training Framework Alternatives
+
+### Current Setup (Recommended)
+- **Framework**: Ultralytics (official YOLOv12 implementation)
+- **Augmentation**: YOLO built-in (hsv_h, degrees, scale, mosaic)
+- **Optimizer**: AdamW (default for attention models)
+- **Monitoring**: TensorBoard (automatic with Ultralytics)
+- **Loss**: YOLO default (box + class + distribution focal loss)
+
+### Alternative Options (If Current Setup Insufficient)
+
+#### **Model Size Alternatives**:
+```bash
+# If YOLOv12n doesn't hit mAP@0.5 > 0.85
+python scripts/train_yolo12_detection.py --model yolo12s.pt  # 9.3M params, more accurate
+python scripts/train_yolo12_detection.py --model yolo12m.pt  # 20.2M params, highest accuracy
+```
+
+#### **Augmentation Alternatives**:
+```python
+# More aggressive Albumentations pipeline
+import albumentations as A
+transform = A.Compose([
+    A.Rotate(limit=10, p=0.5),
+    A.RandomBrightnessContrast(brightness_limit=0.2, contrast_limit=0.2, p=0.5),
+    A.GaussNoise(var_limit=(10.0, 50.0), p=0.3),
+    A.OpticalDistortion(distort_limit=0.05, shift_limit=0.05, p=0.3)
+])
+```
+
+#### **Optimizer Alternatives**:
+```python
+# In training config - switch optimizer if convergence issues
+optimizer: 'SGD'          # Sometimes better for YOLO
+optimizer: 'Adam'         # Faster convergence
+optimizer: 'AdamW'        # Better for attention models (current)
+```
+
+#### **Monitoring Alternatives**:
+```python
+# Weights & Biases for better experiment tracking
+import wandb
+wandb.init(project="checkbox-detection")
+# Add to training script if need collaborative monitoring
+```
+
+#### **Loss Function Alternatives**:
+```python
+# Custom loss weights if class imbalance issues
+box: 7.5        # Bounding box loss weight (current)  
+cls: 0.5        # Classification loss weight (current)
+dfl: 1.5        # Distribution focal loss weight (current)
+# Adjust ratios if detection vs classification performance imbalanced
+```
+
+#### **Training Strategy Alternatives**:
+```python
+# If standard training fails
+- Increase synthetic data ratio (max 50%)
+- Add focal loss for hard examples  
+- Use progressive resizing (start 320→640)
+- Implement curriculum learning (easy→hard samples)
+- Try ensemble of multiple model sizes
+```

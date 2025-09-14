@@ -3,6 +3,12 @@
     "allow": [
       "Bash(claude doctor)",
       "Bash(cd:*)",
+      "Bash(cd:*)",
+      "Bash(python:*)",
+      "Bash(find:*)",
+      "Bash(cat:*)",
+      "Bash(mkdir:*)",
+      "Bash(cp:*)",
       "Bash(cd:*)"
     ],
     "deny": []

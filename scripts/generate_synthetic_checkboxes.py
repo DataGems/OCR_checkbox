@@ -297,39 +297,126 @@ class SyntheticCheckboxGenerator:
             
             # Save annotation (YOLO format: class x_center y_center width height)
             # Normalize coordinates
-            x_center = (x_position + cb_w / 2) / width
-            y_center = (y_position + cb_h / 2) / height
-            w_norm = cb_w / width
-            h_norm = cb_h / height
-            
-            # Class: 0=unchecked, 1=checked, 2=unclear
-            class_id = {"unchecked": 0, "checked": 1, "unclear": 2}[state]
+            x_center = (x_position + cb_w // 2) / width
+            y_center = (y_position + cb_h // 2) / height
+            norm_width = cb_w / width
+            norm_height = cb_h / height
             
             annotations.append({
-                "bbox": [x_center, y_center, w_norm, h_norm],
-                "class": class_id,
-                "state": state
+                'class': 0,  # checkbox class
+                'x_center': x_center,
+                'y_center': y_center, 
+                'width': norm_width,
+                'height': norm_height,
+                'state': state
             })
             
-            y_position += cb_h + 40
+            # Move to next position
+            y_position += cb_h + 30
         
         # Save form image
-        form_img = np.array(pil_img)
-        img_path = self.images_dir / f"form_{form_id:04d}.png"
-        cv2.imwrite(str(img_path), cv2.cvtColor(form_img, cv2.COLOR_RGB2BGR))
-        
-        # Save YOLO format labels
-        label_path = self.labels_dir / f"form_{form_id:04d}.txt"
-        with open(label_path, 'w') as f:
-            for ann in annotations:
-                bbox = ann['bbox']
-                f.write(f"{ann['class']} {bbox[0]:.6f} {bbox[1]:.6f} {bbox[2]:.6f} {bbox[3]:.6f}\n")
+        form_path = self.images_dir / f"form_{form_id:04d}.png"
+        final_img = np.array(pil_img)
+        cv2.imwrite(str(form_path), final_img)
         
         return {
-            "image_path": str(img_path),
-            "label_path": str(label_path),
-            "annotations": annotations
+            'image_path': form_path,
+            'annotations': annotations,
+            'form_id': form_id
         }
+    
+    def generate_form_with_checkboxes(self, num_checkboxes: int = 5, 
+                                    image_size: Tuple[int, int] = (800, 600),
+                                    output_path: Optional[Path] = None) -> Tuple[np.ndarray, List[Dict]]:
+        """
+        Generate a single form with checkboxes for unified pipeline.
+        
+        Args:
+            num_checkboxes: Number of checkboxes to generate
+            image_size: (width, height) of the output image
+            output_path: Where to save the image (optional)
+            
+        Returns:
+            Tuple of (image_array, annotations_list)
+        """
+        width, height = image_size
+        
+        # Create background
+        bg_pattern = random.choice(self.bg_patterns)
+        form_img = self.create_form_background(width, height, bg_pattern)
+        
+        # Convert to PIL for text rendering
+        pil_img = Image.fromarray(form_img)
+        draw = ImageDraw.Draw(pil_img)
+        
+        # Add form elements
+        try:
+            font = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 20)
+        except:
+            font = ImageFont.load_default()
+        
+        # Generate checkboxes
+        annotations = []
+        y_start = 80
+        y_spacing = max(50, height // (num_checkboxes + 2))
+        
+        for i in range(num_checkboxes):
+            # Random checkbox style
+            style = CheckboxStyle(
+                size=random.choice(self.sizes),
+                border_width=random.choice(self.border_widths),
+                border_color=random.choice(self.border_colors),
+                check_style=random.choice(self.check_styles),
+                rounded_corners=random.choice([True, False])
+            )
+            
+            # Random state
+            state = random.choice(["checked", "unchecked", "unclear"])
+            
+            # Generate checkbox
+            checkbox_img = self.generate_checkbox(style, state)
+            
+            # Position
+            x_pos = 50 + random.randint(-10, 10)  # Add some variation
+            y_pos = y_start + i * y_spacing + random.randint(-5, 5)
+            
+            # Convert back to numpy to paste checkbox
+            form_img = np.array(pil_img)
+            
+            # Calculate dimensions
+            cb_h, cb_w = checkbox_img.shape[:2]
+            
+            # Ensure within bounds
+            if y_pos + cb_h < height and x_pos + cb_w < width:
+                # Paste checkbox
+                form_img[y_pos:y_pos + cb_h, x_pos:x_pos + cb_w] = checkbox_img
+                
+                # Back to PIL
+                pil_img = Image.fromarray(form_img)
+                draw = ImageDraw.Draw(pil_img)
+                
+                # Add label
+                label = f"Option {chr(65 + i)}: {random.choice(['Accept', 'Decline', 'Agree', 'Disagree', 'Yes', 'No'])}"
+                draw.text((x_pos + cb_w + 15, y_pos + cb_h // 3), 
+                         label, fill=(0, 0, 0), font=font)
+                
+                # Create annotation
+                annotations.append({
+                    'x_center': x_pos + cb_w // 2,
+                    'y_center': y_pos + cb_h // 2,
+                    'width': cb_w,
+                    'height': cb_h,
+                    'state': state
+                })
+        
+        # Final image
+        final_img = np.array(pil_img)
+        
+        # Save if path provided
+        if output_path:
+            cv2.imwrite(str(output_path), final_img)
+        
+        return final_img, annotations
     
     def generate_dataset(self, num_forms: int = 100):
         """Generate complete synthetic dataset."""

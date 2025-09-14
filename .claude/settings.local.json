@@ -9,6 +9,10 @@
       "Bash(cat:*)",
       "Bash(mkdir:*)",
       "Bash(cp:*)",
+      "Bash(cd:*)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:arxiv.org)",
       "Bash(cd:*)"
     ],
     "deny": []

@@ -36,8 +36,15 @@ class CheckboxDetector:
         if model_path and Path(model_path).exists():
             self.load_model(model_path)
         else:
-            # Load base model for training
-            self.model = YOLO(config.model_name)
+            # Try to load trained model first, fallback to base model
+            trained_model = Path("models/best.pt")
+            if trained_model.exists():
+                print(f"✅ Loading trained model: {trained_model}")
+                self.load_model(str(trained_model))
+            else:
+                # Load base model for training
+                print(f"📦 Loading base model: {config.model_name}")
+                self.model = YOLO(config.model_name)
     
     def _setup_device(self) -> str:
         """Setup and validate device configuration."""

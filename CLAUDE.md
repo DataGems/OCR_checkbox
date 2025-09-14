@@ -89,6 +89,21 @@ When modifying code, ensure these targets are maintained:
 - Classification accuracy: >0.95
 - Memory usage: <6GB VRAM peak
 
+### Detection Evaluation Metrics
+
+**IoU (Intersection over Union)**: Standard metric for bounding box evaluation
+- IoU = Area of Overlap / Area of Union
+- IoU ≥ 0.5: Standard threshold - predicted box must overlap ≥50% with ground truth
+- IoU ≥ 0.75: Stricter threshold for high precision applications
+- IoU ≥ 0.3: Lenient threshold, sometimes used for very small objects
+
+**YOLOv12 Metrics**:
+- **mAP@0.5**: Mean Average Precision at IoU=0.5 threshold (project target: >0.85)
+- **mAP@0.5:0.95**: Mean across IoU thresholds from 0.5 to 0.95 (comprehensive measure)
+- **Precision/Recall**: At different confidence thresholds
+
+**Why IoU=0.5 for Checkboxes**: Balances accuracy requirements with practical detection needs for small (20-40 pixel) objects. Allows reasonable positioning/sizing variation while ensuring meaningful overlap with ground truth annotations.
+
 ## Development Notes
 
 - Python 3.9+ required
